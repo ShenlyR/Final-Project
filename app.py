@@ -5,6 +5,7 @@ import joblib
 import xgboost as xgb
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import seaborn as sns 
 
 # Load Model, Fitur, dan Freq Maps
 model = xgb.XGBRegressor()
@@ -39,11 +40,11 @@ with col2:
     
     status_pesanan = st.selectbox("Status Pesanan", ["Selesai (Diterima)", "Batal"])
 
-# --- PERUBAHAN: Tombol dikecilkan dengan kolom ---
-st.write("") # Spasi kosong sedikit
-col_btn, _ = st.columns([1, 5]) 
+# Button
+st.write("") 
+col_btn, _ = st.columns([1, 3]) 
 with col_btn:
-    tombol_prediksi = st.button("Total Pendapatan", type="primary", use_container_width=True)
+    tombol_prediksi = st.button("Simulasi Pendapatan", type="primary", use_container_width=True)
 
 # Proses Prediksi
 if tombol_prediksi:
@@ -81,7 +82,7 @@ if tombol_prediksi:
         prediction_log = model.predict(input_df)
         prediction_rupiah = np.expm1(prediction_log)[0]
 
-    # --- HASIL PREDIKSI ---
+    # Hasil
     st.divider()
     
     # Card Hasil Utama
@@ -94,7 +95,7 @@ if tombol_prediksi:
             st.success(f"**Status: Pesanan Selesai/Diterima**")
             st.metric(label="Estimasi Pendapatan Bersih", value=f"Rp {prediction_rupiah:,.2f}")
 
-    # --- RINCIAN FINANSIAL ---
+    # Informasi
     st.markdown("### 📊 Rincian Finansial Transaksi")
     with st.container(border=True):
         col_res1, col_res2, col_res3 = st.columns(3)
@@ -107,8 +108,8 @@ if tombol_prediksi:
             estimasi_kotor = prediction_rupiah + diskon
             st.metric(label="Estimasi Nilai Kotor (Sebelum Diskon)", value=f"Rp {estimasi_kotor:,.0f}")
 
-    # --- GRAFIK ALUR PENDAPATAN (WATERFALL) ---
-    st.markdown("### 📈 Grafik Alur Pendapatan")
+    # Visualisasi Grafik
+    st.markdown("Grafik Pendapatan")
     
     with st.container(border=True):
         if status_pesanan == "Batal" or prediction_rupiah == 0:
@@ -118,38 +119,42 @@ if tombol_prediksi:
             
             labels = ['Harga Kotor', 'Diskon', 'Pendapatan Bersih']
             values = [harga_kotor, -diskon, prediction_rupiah]
-            colors = ['#2ca02c', '#d62728', '#1f77b4'] 
+
+            palette = sns.color_palette("viridis", 3) 
+            colors = [palette[0], palette[1], palette[2]]
             
-            fig, ax = plt.subplots(figsize=(10, 4))
+            col_graph, col_empty = st.columns([1, 1]) 
             
-            ax.bar(labels[0], values[0], color=colors[0])
-            
-            if diskon > 0:
-                ax.bar(labels[1], values[1], bottom=prediction_rupiah, color=colors[1])
-            
-            ax.bar(labels[2], values[2], color=colors[2])
-            
-            for i, (label, val) in enumerate(zip(labels, values)):
-                if i == 0:
-                    y_pos = val
-                elif i == 1:
-                    y_pos = prediction_rupiah + abs(val) if diskon > 0 else prediction_rupiah
-                else:
-                    y_pos = val
-                    
-                if val != 0:
-                    text_val = abs(val)
-                    ax.text(i, y_pos + (max(values)*0.02), f'Rp {text_val:,.0f}', 
-                            ha='center', va='bottom', fontweight='bold', color='black')
+            with col_graph:
+                fig, ax = plt.subplots(figsize=(7, 4)) 
                 
-            ax.set_ylabel('Nominal (Rp)')   
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            
-            ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'Rp {x:,.0f}'))
-            ax.set_ylim(0, max(values) * 1.2)
-            
-            ax.plot([0.4, 0.6], [harga_kotor, harga_kotor], color='gray', linestyle='--', linewidth=1)
-            ax.plot([1.4, 1.6], [prediction_rupiah, prediction_rupiah], color='gray', linestyle='--', linewidth=1)
-            
-            st.pyplot(fig)
+                ax.bar(labels[0], values[0], color=colors[0])
+                
+                if diskon > 0:
+                    ax.bar(labels[1], values[1], bottom=prediction_rupiah, color=colors[1])
+                
+                ax.bar(labels[2], values[2], color=colors[2])
+                
+                for i, (label, val) in enumerate(zip(labels, values)):
+                    if i == 0:
+                        y_pos = val
+                    elif i == 1:
+                        y_pos = prediction_rupiah + abs(val) if diskon > 0 else prediction_rupiah
+                    else:
+                        y_pos = val
+                        
+                    if val != 0:
+                        text_val = abs(val)
+                        ax.text(i, y_pos + (max(values)*0.02), f'Rp {text_val:,.0f}', 
+                                ha='center', va='bottom', fontweight='bold', color='black', fontsize=9)
+                    
+                ax.set_ylabel('Nominal (Rp)')        
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                
+                ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f'Rp {x:,.0f}'))
+                ax.set_ylim(0, max(values) * 1.2)
+                
+                ax.plot([0.4, 0.6], [harga_kotor, harga_kotor], color='gray', linestyle='--', linewidth=1)
+                ax.plot([1.4, 1.6], [prediction_rupiah, prediction_rupiah], color='gray', linestyle='--', linewidth=1)
+                st.pyplot(fig, use_container_width=True) 
